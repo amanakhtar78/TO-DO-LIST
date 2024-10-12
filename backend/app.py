@@ -1,14 +1,17 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flasgger import Swagger
 import pyodbc
 import os
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+swagger = Swagger(app)  # Initialize Swagger
 
 # Database connection function
 def get_db_connection():
@@ -17,7 +20,6 @@ def get_db_connection():
     username = os.getenv('DB_USERNAME')
     password = os.getenv('DB_PASSWORD')
     
-    # Create the connection string
     connection_string = (
         f'DRIVER={{SQL Server}};'
         f'SERVER={server};'
@@ -26,17 +28,38 @@ def get_db_connection():
         f'PWD={password}'
     )
     
-    # Return a new connection to the database
     return pyodbc.connect(connection_string)
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @app.route('/api/tasks', methods=['POST'])
-@app.route('/api/tasks', methods=['POST'])
 def create_task():
+    """
+    Create a new task
+    ---
+    parameters:
+      - name: task
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+              example: "New Task"
+            description:
+              type: string
+              example: "Task Description"
+    responses:
+      201:
+        description: Task created successfully
+      400:
+        description: Title is required
+      500:
+        description: Error creating task
+    """
     data = request.get_json()
     title = data.get('title')
     description = data.get('description')
@@ -47,18 +70,11 @@ def create_task():
     connection = get_db_connection()
     cursor = connection.cursor()
     try:
-        # Execute the stored procedure
         cursor.execute("{CALL sp_InsertTask (?, ?)}", (title, description))
-        
-        # Fetch the result before committing
         row = cursor.fetchone()
-        
-        # Commit the transaction
         connection.commit()
-        
-        # Check if the stored procedure returned the NewTaskID
         if row:
-            new_task_id = row[0]  # Access the first column directly
+            new_task_id = row[0]
             logger.info(f"Task created successfully with ID: {new_task_id}")
             return jsonify({'message': 'Task created successfully', 'id': new_task_id}), 201
         else:
@@ -72,9 +88,17 @@ def create_task():
         cursor.close()
         connection.close()
 
-# Get all tasks
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
+    """
+    Get all tasks
+    ---
+    responses:
+      200:
+        description: A list of tasks
+      500:
+        description: Error fetching tasks
+    """
     connection = get_db_connection()
     cursor = connection.cursor()
     try:
@@ -90,9 +114,24 @@ def get_tasks():
         cursor.close()
         connection.close()
 
-# Get task by ID
 @app.route('/api/tasks/<int:id>', methods=['GET'])
 def get_task(id):
+    """
+    Get a task by ID
+    ---
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Task found
+      404:
+        description: Task not found
+      500:
+        description: Error fetching task
+    """
     connection = get_db_connection()
     cursor = connection.cursor()
     try:
@@ -110,9 +149,38 @@ def get_task(id):
         cursor.close()
         connection.close()
 
-# Update a task
 @app.route('/api/tasks/<int:id>', methods=['PUT'])
 def update_task(id):
+    """
+    Update a task
+    ---
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: integer
+      - name: task
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+              example: "Updated Task"
+            description:
+              type: string
+              example: "Updated Description"
+    responses:
+      200:
+        description: Task updated successfully
+      404:
+        description: Task not found
+      400:
+        description: Title is required
+      500:
+        description: Error updating task
+    """
     data = request.get_json()
     title = data.get('title')
     description = data.get('description')
@@ -135,9 +203,24 @@ def update_task(id):
         cursor.close()
         connection.close()
 
-# Delete a task
 @app.route('/api/tasks/<int:id>', methods=['DELETE'])
 def delete_task(id):
+    """
+    Delete a task
+    ---
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Task deleted successfully
+      404:
+        description: Task not found
+      500:
+        description: Error deleting task
+    """
     connection = get_db_connection()
     cursor = connection.cursor()
     try:
