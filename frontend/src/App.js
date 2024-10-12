@@ -56,6 +56,7 @@ const App = () => {
   const fetchTaskById = async (id) => {
     if (!searchId) {
       alert("Please provide an ID.");
+      setTaskById("");
       return;
     }
     setLoading(true);

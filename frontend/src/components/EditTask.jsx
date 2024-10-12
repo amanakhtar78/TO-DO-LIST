@@ -30,6 +30,7 @@ const EditTask = () => {
         setLoadingTrue(false);
       } catch (error) {
         alert("Error fetching task. Please try again.");
+        navigate("/");
         console.error("Fetch task error: ", error);
         setLoadingTrue(false);
       }
